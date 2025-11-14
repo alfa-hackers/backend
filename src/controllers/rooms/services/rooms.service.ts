@@ -2,10 +2,9 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Room } from 'domain/room.entity'
-import { User } from 'domain/user.entity'
 import { FastifyRequest } from 'fastify'
 import { AuthService } from 'controllers/auth/services'
-
+import { User } from 'domain/user.entity'
 @Injectable()
 export class RoomsService {
   constructor(
@@ -13,7 +12,7 @@ export class RoomsService {
     private readonly roomRepository: Repository<Room>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async extractUserId(request: FastifyRequest, authService: AuthService): Promise<string | null> {
     if (request.headers.cookie) {

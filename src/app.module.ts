@@ -29,4 +29,4 @@ import { HelpersModule } from 'controllers/helpers/helpers.module'
     MinioModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

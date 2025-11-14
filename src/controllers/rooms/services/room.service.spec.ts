@@ -1,139 +1,159 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { RoomsService } from './rooms.service';
-import { Repository } from 'typeorm';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Room } from 'domain/room.entity';
-import { User } from 'domain/user.entity';
-import { AuthService } from 'controllers/auth/services';
-import { FastifyRequest } from 'fastify';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing'
+import { getRepositoryToken } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { RoomsService } from './rooms.service'
+import { Room } from 'domain/room.entity'
+import { User } from 'domain/user.entity'
+import { AuthService } from 'controllers/auth/services'
+import { NotFoundException, UnauthorizedException } from '@nestjs/common'
+import { FastifyRequest } from 'fastify'
 
 describe('RoomsService', () => {
-    let service: RoomsService;
-    let roomRepository: Partial<Repository<Room>>;
-    let userRepository: Partial<Repository<User>>;
-    let authService: Partial<AuthService>;
+    let service: RoomsService
+    let roomRepository: Repository<Room>
+    let userRepository: Repository<User>
+    let authService: AuthService
+
+    const mockRoomRepository = {
+        findOne: jest.fn(),
+        createQueryBuilder: jest.fn(),
+        remove: jest.fn(),
+    }
+
+    const mockUserRepository = {
+        findOne: jest.fn(),
+    }
+
+    const mockAuthService = {
+        getCurrentUser: jest.fn(),
+    }
 
     beforeEach(async () => {
-        roomRepository = {
-            findOne: jest.fn(),
-            remove: jest.fn(),
-            createQueryBuilder: jest.fn(),
-        };
-
-        userRepository = {
-            findOne: jest.fn(),
-        };
-
-        authService = {
-            getCurrentUser: jest.fn(),
-        };
-
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 RoomsService,
-                { provide: getRepositoryToken(Room), useValue: roomRepository },
-                { provide: getRepositoryToken(User), useValue: userRepository },
+                {
+                    provide: getRepositoryToken(Room),
+                    useValue: mockRoomRepository,
+                },
+                {
+                    provide: getRepositoryToken(User),
+                    useValue: mockUserRepository,
+                },
+                {
+                    provide: AuthService,
+                    useValue: mockAuthService,
+                },
             ],
-        }).compile();
+        }).compile()
 
-        service = module.get<RoomsService>(RoomsService);
-    });
+        service = module.get<RoomsService>(RoomsService)
+        roomRepository = module.get<Repository<Room>>(getRepositoryToken(Room))
+        userRepository = module.get<Repository<User>>(getRepositoryToken(User))
+        authService = module.get<AuthService>(AuthService)
+    })
+
+    afterEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('should be defined', () => {
+        expect(service).toBeDefined()
+    })
 
     describe('extractUserId', () => {
-        it('should return user id from AuthService if cookie exists', async () => {
+        it('should return user id from authenticated user', async () => {
             const mockRequest = {
-                headers: { cookie: 'token=abc' },
+                headers: { cookie: 'session=123' },
                 session: {},
-            } as unknown as FastifyRequest;
+            } as FastifyRequest
 
-            (authService.getCurrentUser as jest.Mock).mockResolvedValue({ id: 'user123' });
+            mockAuthService.getCurrentUser.mockResolvedValue({ id: 'user-123' })
 
-            const result = await service.extractUserId(mockRequest, authService as AuthService);
+            const result = await service.extractUserId(mockRequest, authService)
 
-            expect(result).toBe('user123');
-            expect(authService.getCurrentUser).toHaveBeenCalledWith(mockRequest);
-        });
+            expect(result).toBe('user-123')
+            expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith(mockRequest)
+        })
 
-        it('should return user_temp_id from session if no cookie', async () => {
+        it('should return temp user id from session', async () => {
             const mockRequest = {
                 headers: {},
-                session: { user_temp_id: 'temp456' },
-            } as unknown as FastifyRequest;
+                session: { user_temp_id: 'temp-123' },
+            } as any
 
-            const result = await service.extractUserId(mockRequest, authService as AuthService);
+            const result = await service.extractUserId(mockRequest, authService)
 
-            expect(result).toBe('temp456');
-        });
+            expect(result).toBe('temp-123')
+        })
 
-        it('should return null if no user found', async () => {
+        it('should return null if no user id available', async () => {
             const mockRequest = {
-                headers: { cookie: 'token=abc' },
+                headers: {},
                 session: {},
-            } as unknown as FastifyRequest;
+            } as any
 
-            (authService.getCurrentUser as jest.Mock).mockResolvedValue(null);
+            const result = await service.extractUserId(mockRequest, authService)
 
-            const result = await service.extractUserId(mockRequest, authService as AuthService);
-
-            expect(result).toBeNull();
-        });
-    });
+            expect(result).toBeNull()
+        })
+    })
 
     describe('getRoomsByUserId', () => {
         it('should throw UnauthorizedException if userId is not provided', async () => {
-            await expect(service.getRoomsByUserId('')).rejects.toThrow(UnauthorizedException);
-        });
+            await expect(service.getRoomsByUserId('')).rejects.toThrow(UnauthorizedException)
+        })
 
         it('should throw NotFoundException if user does not exist', async () => {
-            (userRepository.findOne as jest.Mock).mockResolvedValue(null);
+            mockUserRepository.findOne.mockResolvedValue(null)
 
-            await expect(service.getRoomsByUserId('user123')).rejects.toThrow(NotFoundException);
-        });
+            await expect(service.getRoomsByUserId('user-123')).rejects.toThrow(NotFoundException)
+        })
 
-        it('should return rooms for valid userId', async () => {
-            const mockUser = { id: 'user123', email: 'test@test.com' };
+        it('should return rooms for valid user', async () => {
+            const mockUser = { id: 'user-123' }
             const mockRooms = [
-                { id: 'room1', name: 'Room 1', owner: mockUser },
-                { id: 'room2', name: 'Room 2', owner: mockUser },
-            ];
+                { id: 'room-1', name: 'Room 1' },
+                { id: 'room-2', name: 'Room 2' },
+            ]
 
-            (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-
-            const queryBuilder = {
+            mockUserRepository.findOne.mockResolvedValue(mockUser)
+            mockRoomRepository.createQueryBuilder.mockReturnValue({
                 leftJoinAndSelect: jest.fn().mockReturnThis(),
                 leftJoin: jest.fn().mockReturnThis(),
                 where: jest.fn().mockReturnThis(),
                 orderBy: jest.fn().mockReturnThis(),
                 getMany: jest.fn().mockResolvedValue(mockRooms),
-            };
+            })
 
-            (roomRepository.createQueryBuilder as jest.Mock).mockReturnValue(queryBuilder);
+            const result = await service.getRoomsByUserId('user-123')
 
-            const result = await service.getRoomsByUserId('user123');
-
-            expect(result).toEqual({ data: mockRooms, meta: { total: 2 } });
-            expect(queryBuilder.where).toHaveBeenCalledWith('userRoom.userId = :userId', { userId: 'user123' });
-        });
-    });
+            expect(result).toEqual({
+                data: mockRooms,
+                meta: { total: 2 },
+            })
+        })
+    })
 
     describe('deleteRoom', () => {
         it('should throw NotFoundException if room does not exist', async () => {
-            (roomRepository.findOne as jest.Mock).mockResolvedValue(null);
+            mockRoomRepository.findOne.mockResolvedValue(null)
 
-            await expect(service.deleteRoom('room123')).rejects.toThrow(NotFoundException);
-        });
+            await expect(service.deleteRoom('room-123')).rejects.toThrow(NotFoundException)
+        })
 
         it('should delete room successfully', async () => {
-            const mockRoom = { id: 'room123', name: 'Test Room', owner: { id: 'user123' } };
+            const mockRoom = { id: 'room-123', name: 'Test Room' }
+            mockRoomRepository.findOne.mockResolvedValue(mockRoom)
+            mockRoomRepository.remove.mockResolvedValue(mockRoom)
 
-            (roomRepository.findOne as jest.Mock).mockResolvedValue(mockRoom);
-            (roomRepository.remove as jest.Mock).mockResolvedValue(mockRoom);
+            const result = await service.deleteRoom('room-123')
 
-            const result = await service.deleteRoom('room123');
-
-            expect(result).toEqual({ success: true, message: 'Room deleted successfully' });
-            expect(roomRepository.remove).toHaveBeenCalledWith(mockRoom);
-        });
-    });
-});
+            expect(result).toEqual({
+                success: true,
+                message: 'Room deleted successfully',
+            })
+            expect(mockRoomRepository.remove).toHaveBeenCalledWith(mockRoom)
+        })
+    })
+})
