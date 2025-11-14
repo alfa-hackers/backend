@@ -1,0 +1,130 @@
+services:
+  redis:
+    image: 'docker.io/bitnami/redis:latest'
+    container_name: redis
+    environment:
+      TZ: 'Europe/Omsk'
+      ALLOW_EMPTY_PASSWORD: 'yes'
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT_NUMBER: ${REDIS_PORT}
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    networks:
+      - app
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '1m'
+        max-file: '3'
+    mem_limit: 2G
+    cpus: 4.0
+
+  postgres:
+    image: 'docker.io/bitnami/postgresql:latest'
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRESQL_USERNAME: ${DATABASE_USERNAME}
+      POSTGRESQL_DATABASE: ${DATABASE_NAME}
+      POSTGRESQL_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRESQL_PORT_NUMBER: ${DATABASE_PORT}
+      TZ: 'Europe/Omsk'
+      ALLOW_EMPTY_PASSWORD: 'no'
+      POSTGRESQL_VOLUME_DIR: '/bitnami/postgresql'
+      POSTGRESQL_ENABLE_TLS: 'no'
+    ports:
+      - '${DATABASE_PORT}:${DATABASE_PORT}'
+    container_name: 'postgres'
+    volumes:
+      - pg_data:/bitnami/postgresql
+    networks:
+      - app
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '1m'
+        max-file: '3'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $DATABASE_USERNAME']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    mem_limit: 2G
+    cpus: 4.0
+
+  minio:
+    image: 'minio/minio:RELEASE.2025-07-23T15-54-02Z'
+    container_name: 'minio'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      TZ: 'Europe/Omsk'
+    ports:
+      - '${MINIO_PORT}:${MINIO_PORT}'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    networks:
+      - app
+    restart: always
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '1m'
+        max-file: '3'
+    mem_limit: 2G
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: >
+        sh -c "mc alias set local http://localhost:${MINIO_PORT} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc admin info local"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+
+  # nestjs:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   image: 'nestjs-api:latest'
+  #   env_file:
+  #     - prod.env
+  #   environment:
+  #     TZ: 'Europe/Omsk'
+  #   ports:
+  #     - '${BACKEND_PORT}:${BACKEND_PORT}'
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   container_name: 'nestjs-app'
+  #   networks:
+  #     - app
+  #   restart: always
+  #   logging:
+  #     driver: 'json-file'
+  #     options:
+  #       max-size: '1m'
+  #       max-file: '3'
+  #   mem_limit: 2G
+  #   cpus: 4.0
+  #   sysctls:
+  #     net.core.somaxconn: 1024
+  #     net.ipv4.tcp_syncookies: 1
+  #   volumes:
+  #     - uploads_data:/app/uploads
+  #     - static_data:/app/static
+
+volumes:
+  pg_data:
+  static_data:
+  uploads_data:
+  minio_data:
+
+networks:
+  app:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24

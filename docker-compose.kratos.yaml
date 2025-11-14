@@ -1,0 +1,53 @@
+services:
+  kratos-migrate:
+    image: oryd/kratos:v1.2.0
+    depends_on:
+      - kratos-db
+    environment:
+      - DSN=postgres://kratos:secret@kratos-db:5432/kratos?sslmode=disable
+    command: ['migrate', 'sql', '-e', '--yes']
+    restart: 'on-failure'
+    networks:
+      - kratos-net
+
+  kratos:
+    image: oryd/kratos:v1.2.0
+    depends_on:
+      - kratos-db
+    ports:
+      - '4433:4433' # public
+      - '4434:4434' # admin
+    environment:
+      - DSN=postgres://kratos:secret@kratos-db:5432/kratos?sslmode=disable
+      - LOG_LEVEL=debug
+      - SERVE_PUBLIC_BASE_URL=http://localhost:4433/
+      - SERVE_ADMIN_BASE_URL=http://localhost:4434/
+      - KRATOS_BROWSER_UI_URL=http://localhost:3000/
+      - KRATOS_PUBLIC_URL=http://localhost:4433/
+      - KRATOS_ADMIN_URL=http://localhost:4434/
+      - KRATOS_DOMAIN=localhost
+    volumes:
+      - ./config/stage/kratos:/etc/config/kratos
+    command: serve --dev --config /etc/config/kratos/kratos.yml
+    restart: unless-stopped
+    networks:
+      - kratos-net
+
+  kratos-db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: kratos
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: kratos
+    volumes:
+      - kratos-db-data:/var/lib/postgresql/data
+    networks:
+      - kratos-net
+
+networks:
+  kratos-net:
+    driver: bridge
+
+volumes:
+  kratos-db-data:

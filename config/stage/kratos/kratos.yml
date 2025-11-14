@@ -1,0 +1,63 @@
+version: v0.11.0
+
+dsn: postgres://kratos:secret@kratos-db:5432/kratos?sslmode=disable
+
+serve:
+  public:
+    base_url: http://localhost:4433/
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+        - http://127.0.0.1:3000
+        - http://127.0.0.1:3001
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Content-Type
+        - Cookie
+      exposed_headers:
+        - Set-Cookie
+      allow_credentials: true
+  admin:
+    base_url: http://localhost:4434/
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.default.schema.json
+
+selfservice:
+  default_browser_return_url: http://localhost:3000
+  flows:
+    login:
+      ui_url: http://localhost:3000/login
+      lifespan: 10m
+    registration:
+      ui_url: http://localhost:3000/register
+      lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: session
+    logout:
+      after:
+        default_browser_return_url: http://localhost:3000
+  methods:
+    password:
+      enabled: true
+
+session:
+  lifespan: 768h
+  cookie:
+    domain: localhost
+    path: /
+
+log:
+  level: debug
