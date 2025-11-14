@@ -19,14 +19,12 @@ jobs:
         node-version: 24
 
     - name: Install dependencies
-      run: npm ci
+      run: yarn install --frozen-lockfile # <-- вместо npm ci
 
     - name: Run tests and collect coverage
-      run: |
-        npm run test -- --coverage
+      run: yarn test --coverage
 
     - name: Upload coverage to Codecov
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      run: |
-        npx codecov
+      run: npx codecov
