@@ -1,34 +1,32 @@
-name: Build Docker Images
+name: CI
 
 on:
   push:
     branches:
-    - master
+    - main
+  pull_request:
+
 
 jobs:
-  trigger-build:
-    uses: theaters2026/workflows/.github/workflows/buildx-build.yaml@main
-    with:
-      image-name: ${{ github.repository }}/backend
-    secrets:
-      personal_access_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-  trigger-cleanup:
-    needs: [ trigger-build ]
-    uses: theaters2026/workflows/.github/workflows/clean-registry.yaml@main
-    with:
-      owner: ${{ github.repository_owner }}
-      repository: backend
-      package: backend/backend
-      keep_n_tagged: 2
-      dry_run: false
-    secrets:
-      personal_access_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-  deploy:
-    needs: [ trigger-cleanup ]
+  build:
     runs-on: ubuntu-latest
     steps:
-    - name: Deploy to environment
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 24
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests and collect coverage
       run: |
-        echo "Deploying application"
+        npm run test -- --coverage
+
+    - name: Upload coverage to Codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        npx codecov
