@@ -13,7 +13,7 @@ export class ResponseGeneratorService {
     private readonly excelResponseService: ExcelResponseService,
     private readonly powerpointResponseService: PowerpointResponseService,
     private readonly checklistResponseService: ChecklistResponseService,
-  ) { }
+  ) {}
 
   async generateResponseByFlag(
     messageFlag: string,

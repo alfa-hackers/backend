@@ -12,7 +12,7 @@ export class RoomsService {
     private readonly roomRepository: Repository<Room>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async extractUserId(request: FastifyRequest, authService: AuthService): Promise<string | null> {
     if (request.headers.cookie) {

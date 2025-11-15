@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { SaveMinioService } from '../save-minio.service'
 import * as ExcelJS from 'exceljs'
 
@@ -214,6 +214,7 @@ export class ExcelResponseService {
     return nonEmpty.every((cell) => /^[-:=_*]+$/.test(cell))
   }
 
+  // eslint-disable-next-line
   private isExplanationRow(row: string[], expectedColumns: number): boolean {
     const text = row.join(' ').toLowerCase()
 
@@ -356,7 +357,9 @@ export class ExcelResponseService {
           if (!isNaN(date.getTime())) {
             return date
           }
-        } catch (e) {}
+        } catch (e) {
+          Logger.log(e)
+        }
       }
     }
 

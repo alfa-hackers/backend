@@ -33,7 +33,7 @@ export class MinioService {
 
       return `${bucketName}/${fileName}`
     } catch (error) {
-      throw new InternalServerErrorException('Ошибка при загрузке файла в MinIO')
+      throw new InternalServerErrorException(error, 'Ошибка при загрузке файла в MinIO')
     }
   }
 

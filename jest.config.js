@@ -16,6 +16,8 @@ module.exports = {
     '!src/**/*.module.ts',
     '!src/**/*.interface.ts',
     '!src/**/*.entity.ts',
+    '!src/**/*.dto.ts',
+    '!src/**/*.schema.ts',
     '!src/main.ts',
     '!src/**/consts/**',
     '!src/**/types/**',

@@ -6,7 +6,7 @@ import * as fs from 'fs'
 
 @Injectable()
 export class PdfResponseService {
-  constructor(private readonly saveMinioService: SaveMinioService) { }
+  constructor(private readonly saveMinioService: SaveMinioService) {}
 
   private extractStructuredContent(
     content: string,

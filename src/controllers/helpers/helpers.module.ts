@@ -9,4 +9,4 @@ import { User } from 'domain/user.entity'
   controllers: [UserTempController],
   providers: [AuthService],
 })
-export class HelpersModule { }
+export class HelpersModule {}
