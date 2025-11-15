@@ -5,11 +5,11 @@ export class LoginDto {
   static schema = loginSchema
 
   @ApiProperty()
-  username: string
+  username?: string
 
   @ApiProperty()
   password: string
 
   @ApiProperty({ required: false })
-  email?: string
+  email: string
 }
