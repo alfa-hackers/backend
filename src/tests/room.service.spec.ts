@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { RoomsService } from './rooms.service'
+import { RoomsService } from '../controllers/rooms/services/rooms.service'
 import { Room } from 'domain/room.entity'
 import { User } from 'domain/user.entity'
 import { AuthService } from 'controllers/auth/services'
