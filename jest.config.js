@@ -13,6 +13,9 @@ module.exports = {
     '!src/**/*.spec.ts',
     '!src/**/*.test.ts',
     '!src/**/index.ts',
+    '!src/**/*.module.ts',
+    '!src/**/*.interface.ts',
     '!src/main.ts',
+    '!src/**/consts/**',
   ],
 }
