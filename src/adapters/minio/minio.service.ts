@@ -174,11 +174,16 @@ export class MinioService implements OnModuleInit {
         throw new Error('Неверный формат fileUrl. Ожидается: bucket/path/to/file')
       }
 
-      const publicUrl = await this.publicClient.presignedGetObject(
+      let publicUrl = await this.publicClient.presignedGetObject(
         bucketName,
         fileName,
         expiresInSeconds,
       )
+
+      // Подменяем http на https
+      if (publicUrl.startsWith('http://')) {
+        publicUrl = publicUrl.replace('http://', 'https://')
+      }
 
       this.logger.log(`✅ Pre-signed URL создан для "${fileUrl}"`)
       this.logger.log(`   Bucket: ${bucketName}`)
