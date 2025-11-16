@@ -14,9 +14,6 @@ export class MinioService {
       accessKey: process.env.MINIO_ACCESS_KEY,
       secretKey: process.env.MINIO_SECRET_KEY,
     })
-    this.logger.log(
-      `MinIO client initialized with endpoint: ${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-    )
   }
 
   async uploadFile(
@@ -26,27 +23,22 @@ export class MinioService {
     contentType: string,
   ): Promise<string> {
     try {
-      this.logger.log(`Проверка существования бакета: ${bucketName}`)
       const exists = await this.minioClient.bucketExists(bucketName)
       if (!exists) {
-        this.logger.log(`Бакет не найден, создаем: ${bucketName}`)
+        this.logger.log(`Бакет "${bucketName}" не существует. Создаю новый...`)
         await this.minioClient.makeBucket(bucketName, 'us-east-1')
-        this.logger.log(`Бакет создан: ${bucketName}`)
+        this.logger.log(`Бакет "${bucketName}" успешно создан.`)
       }
 
-      this.logger.log(`Загрузка файла: ${fileName} в бакет: ${bucketName}`)
       await this.minioClient.putObject(bucketName, fileName, fileBuffer, fileBuffer.length, {
         'Content-Type': contentType,
       })
-      this.logger.log(`Файл успешно загружен: ${bucketName}/${fileName}`)
 
+      this.logger.log(`Файл "${fileName}" успешно загружен в бакет "${bucketName}".`)
       return `${bucketName}/${fileName}`
     } catch (error) {
-      this.logger.error(
-        `Ошибка при загрузке файла: ${fileName} в бакет: ${bucketName}`,
-        error.stack,
-      )
-      throw new InternalServerErrorException(error, 'Ошибка при загрузке файла в MinIO')
+      this.logger.error(`Ошибка при загрузке файла "${fileName}" в бакет "${bucketName}": ${error}`)
+      throw new InternalServerErrorException('Ошибка при загрузке файла в MinIO')
     }
   }
 
@@ -56,18 +48,16 @@ export class MinioService {
     expiresInSeconds = 3600,
   ): Promise<string> {
     try {
-      this.logger.log(
-        `Генерация presigned URL для файла: ${bucketName}/${fileName}, срок: ${expiresInSeconds} сек.`,
-      )
       const url = await this.minioClient.presignedGetObject(bucketName, fileName, expiresInSeconds)
-      this.logger.log(`Presigned URL сгенерирован: ${url}`)
+      this.logger.log(
+        `Pre-signed URL для файла "${fileName}" в бакете "${bucketName}" успешно сгенерирован.`,
+      )
       return url
     } catch (error) {
       this.logger.error(
-        `Ошибка при получении presigned URL для файла: ${bucketName}/${fileName}`,
-        error.stack,
+        `Ошибка при получении pre-signed URL для файла "${fileName}" в бакете "${bucketName}": ${error}`,
       )
-      throw new InternalServerErrorException(error, 'Ошибка при получении pre-signed URL')
+      throw new InternalServerErrorException('Ошибка при получении pre-signed URL')
     }
   }
 }

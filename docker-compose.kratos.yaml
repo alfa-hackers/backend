@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   kratos-migrate:
     image: oryd/kratos:v1.2.0
@@ -6,7 +8,7 @@ services:
     environment:
       - DSN=postgres://kratos:secret@kratos-db:5432/kratos?sslmode=disable
     command: ['migrate', 'sql', '-e', '--yes']
-    restart: 'on-failure'
+    restart: on-failure
     networks:
       - kratos-net
 
@@ -15,8 +17,8 @@ services:
     depends_on:
       - kratos-db
     ports:
-      - '4433:4433' # public
-      - '4434:4434' # admin
+      - '4433:4433'
+      - '4434:4434'
     environment:
       - DSN=postgres://kratos:secret@kratos-db:5432/kratos?sslmode=disable
       - LOG_LEVEL=debug
