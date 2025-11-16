@@ -82,7 +82,11 @@ export class MessageService {
     })
 
     try {
-      const combinedMessages = await this.loadContextService.loadContext(roomId, processedContent)
+      const combinedMessages = await this.loadContextService.loadContextWithTokenLimit(
+        roomId,
+        processedContent,
+        customMaxTokens ?? maxTokensMap[messageFlag],
+      )
 
       const temperature = customTemp ?? temperatureMap[messageFlag] ?? 1
       const topP = customTopP ?? topPMap[messageFlag] ?? 1
