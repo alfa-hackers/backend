@@ -4,8 +4,11 @@ import * as Minio from 'minio'
 @Injectable()
 export class MinioService implements OnModuleInit {
   private readonly minioClient: Minio.Client
+  private readonly publicClient: Minio.Client
   private readonly logger = new Logger(MinioService.name)
   private isConnected = false
+  private readonly publicEndpoint: string
+  private readonly internalEndpoint: string
 
   constructor() {
     if (
@@ -19,14 +22,30 @@ export class MinioService implements OnModuleInit {
     const port = 9000
     const useSSL = process.env.MINIO_USE_SSL === 'true'
 
+    this.internalEndpoint = `${useSSL ? 'https' : 'http'}://${process.env.MINIO_ENDPOINT}:${port}`
+    this.publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || 'http://minio.whirav.ru'
+
     this.logger.log(
       `Инициализация MinIO клиента: ${process.env.MINIO_ENDPOINT}:${port} (SSL: ${useSSL})`,
     )
+    this.logger.log(`Внутренний endpoint: ${this.internalEndpoint}`)
+    this.logger.log(`Публичный endpoint: ${this.publicEndpoint}`)
 
     this.minioClient = new Minio.Client({
       endPoint: process.env.MINIO_ENDPOINT,
       port: port,
       useSSL: useSSL,
+      accessKey: process.env.MINIO_ACCESS_KEY,
+      secretKey: process.env.MINIO_SECRET_KEY,
+      region: 'us-east-1',
+      pathStyle: true,
+    })
+
+    const publicUrl = new URL(this.publicEndpoint)
+    this.publicClient = new Minio.Client({
+      endPoint: publicUrl.hostname,
+      port: publicUrl.port ? parseInt(publicUrl.port) : publicUrl.protocol === 'https:' ? 443 : 80,
+      useSSL: publicUrl.protocol === 'https:',
       accessKey: process.env.MINIO_ACCESS_KEY,
       secretKey: process.env.MINIO_SECRET_KEY,
       region: 'us-east-1',
@@ -47,7 +66,6 @@ export class MinioService implements OnModuleInit {
         this.isConnected = true
         this.logger.log(`✅ Успешное подключение к MinIO. Найдено бакетов: ${buckets.length}`)
 
-        // Создаем базовый бакет при инициализации
         await this.ensureBucketExists('chat-files')
         return
       } catch (error) {
@@ -73,7 +91,6 @@ export class MinioService implements OnModuleInit {
         this.logger.log(`Создание бакета "${bucketName}"...`)
         await this.minioClient.makeBucket(bucketName, 'us-east-1')
 
-        // Устанавливаем публичную политику для чтения (опционально)
         const policy = {
           Version: '2012-10-17',
           Statement: [
@@ -117,15 +134,12 @@ export class MinioService implements OnModuleInit {
         `Загрузка файла "${fileName}" в бакет "${bucketName}" (размер: ${fileBuffer.length} bytes)`,
       )
 
-      // Убеждаемся, что бакет существует
       await this.ensureBucketExists(bucketName)
 
-      // Метаданные
       const metaData = {
         'Content-Type': contentType,
       }
 
-      // Загрузка файла
       const result = await this.minioClient.putObject(
         bucketName,
         fileName,
@@ -143,7 +157,6 @@ export class MinioService implements OnModuleInit {
       this.logger.error(`Сообщение: ${error.message || 'N/A'}`)
       this.logger.error(`Детали:`, JSON.stringify(error, null, 2))
 
-      // Попытка переподключения
       this.isConnected = false
 
       throw new InternalServerErrorException(
@@ -152,17 +165,29 @@ export class MinioService implements OnModuleInit {
     }
   }
 
-  async getPresignedUrl(
-    bucketName: string,
-    fileName: string,
-    expiresInSeconds = 3600,
-  ): Promise<string> {
+  async getPresignedUrl(fileUrl: string, expiresInSeconds = 3600): Promise<string> {
     try {
-      const url = await this.minioClient.presignedGetObject(bucketName, fileName, expiresInSeconds)
-      this.logger.log(`✅ Pre-signed URL создан для "${fileName}"`)
-      return url
+      const [bucketName, ...filePathParts] = fileUrl.split('/')
+      const fileName = filePathParts.join('/')
+
+      if (!bucketName || !fileName) {
+        throw new Error('Неверный формат fileUrl. Ожидается: bucket/path/to/file')
+      }
+
+      const publicUrl = await this.publicClient.presignedGetObject(
+        bucketName,
+        fileName,
+        expiresInSeconds,
+      )
+
+      this.logger.log(`✅ Pre-signed URL создан для "${fileUrl}"`)
+      this.logger.log(`   Bucket: ${bucketName}`)
+      this.logger.log(`   File: ${fileName}`)
+      this.logger.log(`   URL: ${publicUrl}`)
+
+      return publicUrl
     } catch (error) {
-      this.logger.error(`❌ Ошибка создания pre-signed URL для "${fileName}": ${error.message}`)
+      this.logger.error(`❌ Ошибка создания pre-signed URL для "${fileUrl}": ${error.message}`)
       throw new InternalServerErrorException(
         `Ошибка при получении pre-signed URL: ${error.message || error}`,
       )
