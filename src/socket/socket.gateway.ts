@@ -25,6 +25,7 @@ import { Logger } from '@nestjs/common'
     credentials: true,
   },
   transports: ['websocket', 'polling'],
+  maxHttpBufferSize: 50 * 1024 * 1024,
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
