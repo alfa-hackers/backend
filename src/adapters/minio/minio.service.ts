@@ -9,6 +9,7 @@ export class MinioService implements OnModuleInit {
   private isConnected = false
   private readonly publicEndpoint: string
   private readonly internalEndpoint: string
+  private readonly isProduction: boolean
 
   constructor() {
     if (
@@ -21,6 +22,7 @@ export class MinioService implements OnModuleInit {
 
     const port = 9000
     const useSSL = process.env.MINIO_USE_SSL === 'true'
+    this.isProduction = process.env.NODE_ENV === 'production'
 
     this.internalEndpoint = `${useSSL ? 'https' : 'http'}://${process.env.MINIO_ENDPOINT}:${port}`
     this.publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || 'http://minio.whirav.ru'
@@ -30,6 +32,7 @@ export class MinioService implements OnModuleInit {
     )
     this.logger.log(`Внутренний endpoint: ${this.internalEndpoint}`)
     this.logger.log(`Публичный endpoint: ${this.publicEndpoint}`)
+    this.logger.log(`Режим: ${this.isProduction ? 'production' : 'development'}`)
 
     this.minioClient = new Minio.Client({
       endPoint: process.env.MINIO_ENDPOINT,
@@ -118,6 +121,27 @@ export class MinioService implements OnModuleInit {
     }
   }
 
+  /**
+   * Очищает fileUrl от полного URL, оставляя только путь bucket/path/to/file
+   */
+  private cleanFileUrl(fileUrl: string): string {
+    let cleanUrl = fileUrl
+
+    // Если это полный URL, извлекаем только путь
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      try {
+        const urlObj = new URL(cleanUrl)
+        // Убираем начальный слэш из pathname
+        cleanUrl = urlObj.pathname.substring(1)
+      } catch (error) {
+        this.logger.warn(error, `Не удалось распарсить URL: ${fileUrl}`)
+      }
+    }
+
+    this.logger.log(`Очищенный fileUrl: "${fileUrl}" -> "${cleanUrl}"`)
+    return cleanUrl
+  }
+
   async uploadFile(
     bucketName: string,
     fileName: string,
@@ -167,7 +191,10 @@ export class MinioService implements OnModuleInit {
 
   async getPresignedUrl(fileUrl: string, expiresInSeconds = 3600): Promise<string> {
     try {
-      const [bucketName, ...filePathParts] = fileUrl.split('/')
+      // Очищаем fileUrl от полного URL
+      const cleanUrl = this.cleanFileUrl(fileUrl)
+
+      const [bucketName, ...filePathParts] = cleanUrl.split('/')
       const fileName = filePathParts.join('/')
 
       if (!bucketName || !fileName) {
@@ -180,9 +207,10 @@ export class MinioService implements OnModuleInit {
         expiresInSeconds,
       )
 
-      // Подменяем http на https
-      if (publicUrl.startsWith('http://')) {
+      // Подменяем http на https только в production
+      if (this.isProduction && publicUrl.startsWith('http://')) {
         publicUrl = publicUrl.replace('http://', 'https://')
+        this.logger.log(`🔒 URL преобразован в HTTPS для production`)
       }
 
       this.logger.log(`✅ Pre-signed URL создан для "${fileUrl}"`)
