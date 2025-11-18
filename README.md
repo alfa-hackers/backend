@@ -23,3 +23,33 @@ yarn start:dev
 | start:prod  | `NODE_ENV=production node dist/main` |
 | test        | `jest`                               |
 | test:cov    | `jest --coverage`                    |
+
+## 📦 Локальная разработка
+
+### Требования
+
+```bash
+- Node.js >= 18.x
+- Docker >= 24.x
+- pnpm >= 8.x
+- yarn >= 1.22.x
+- direnv (опционально, для управления окружением)
+- NestJS >= 10.x
+```
+
+### Настройка Backend
+
+```bash
+cd backend
+
+cp envrc.example envrc
+direnv allow
+docker-compose up -d
+docker-compose -f docker-compose.kratos.yaml up -d
+yarn install
+yarn test --coverage
+yarn start:dev
+```
+
+**Backend доступен по адресу**: `http://localhost:3000`  
+**API-документация**: `http://localhost:3000/api`
